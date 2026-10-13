@@ -1,67 +1,52 @@
-# Zebex Simulator 0.2 — Windows x64
+# Zebex Simulator 0.3 — Windows x64, EKP / SUZ 19.2
 
-Samodzielny EXE do wypróbowania obsługi kolektora przed zakupem. Nie wymaga Pythona ani instalacji .NET. Wygląd i lokalne zachowanie oparto na dostarczonej instrukcji uproszczona_instrukcja_obslugi_z-9000_ekp.pdf: ekran LCD, żółty SCAN, klawiatura, menu EKP, tryby zbierania danych, produkty i dokumenty.
+Samodzielny Windows EXE do sprawdzenia obsługi kolektora przed zakupem. Ekran, klawiatura i menu odtwarzają dostarczoną instrukcję EKP. Aplikacja i most SUZ zawierają .NET; nie wymagają Pythona ani instalowania .NET. Projekt jest niezależny od ZEBEX, ELZAB i InsERT.
 
-**Protokół kolektora dla SUZ nie jest zaimplementowany. Program nie przekazuje danych do SUZ ani Subiekta nexo i nie zastępuje urządzenia w ich sterowniku.** Instrukcja opisuje EKP i m.in. Subiekta GT + Sfera; nie zawiera formatu ramek, komend ani odpowiedzi do emulacji komunikacji. Projekt jest niezależny od ZEBEX, ELZAB i InsERT.
+Wersja 0.3 dodaje transmisję dokumentów i katalogu oraz test połączenia SUZ. **Wymaga instalacji dołączonego mostu SUZ.** Oryginalne narzędzia z instalacji użytkownika szukają fizycznego USB VID 24EA / PID 0300 przed otwarciem COM, także po podaniu numeru portu. Sam symulator i para COM nie przejdą tego sprawdzenia. Most zastępuje dwa narzędzia komunikacyjne własnymi programami pracującymi przez wskazany COM; zachowuje bibliotekę modelową SUZ.
 
-## Pierwsze uruchomienie
+## Uruchomienie i połączenie
 
-1. Rozpakuj ZIP i uruchom **ZebexSimulator.exe** na Windows 10/11 x64.
-2. Na klawiaturze kolektora kliknij **1 → 1**, aby wejść do **Skanuj**.
-3. Wpisz kod w polu po prawej i naciśnij **SCAN** lub Enter. Wpisz ilość i zatwierdź Enterem. Zera na początku kodu są zachowane.
-4. **ESC** wraca do menu. **▲/▼** zmieniają wybór, **ENTER/SCAN** zatwierdzają. **ON/OFF** wyłącza ekran i włącza go ponownie bez kasowania danych.
+1. Rozpakuj **cały ZIP** do zwykłego folderu. Zachowaj `suz-bridge` obok `ZebexSimulator.exe`. Uruchom EXE na Windows 10/11 x64.
+2. Otwórz **Diagnostyka SUZ / COM → Zainstaluj most SUZ**. Zaakceptuj administratora. Instalator sprawdzi sterownik SUZ 19.2, wykona kopie oryginałów i na czas zmiany zatrzyma oraz ponownie uruchomi działającą usługę SUZ. Zamknij jego okno po zakończeniu.
+3. Jeśli masz już działającą parę **COM21 ↔ COM24**, wykorzystaj ją: w symulatorze **COM21**, w SUZ **COM24**. W przeciwnym razie kliknij **Utwórz parę COM**. Dwie aplikacje nie mogą otwierać tego samego portu.
+4. W SUZ wybierz **Elzab Kolektor Plus (Zebex)**, właściwy port i **115200**. W symulatorze ustaw **115200 / 8 / None / One**, Handshake **None**, DTR i RTS wyłączone, następnie **Połącz**.
+5. Uruchom sprawdzenie połączenia w SUZ. Symulator przyjmie `kod_testowy` i potwierdzi go bez zastępowania katalogu ani zerowania ilości.
 
-Przyciski kolektora są aktywne. Cyfry wybierają opcje w menu albo wpisują dane. **BS** usuwa znak. **FN**, następnie 1–5, uruchamia skróty do skanowania, wysyłania, ładowania produktów, przeglądu i usuwania. Odpowiadają im F1–F5 komputera. **α** przełącza litery i znaki; powtarzanie klawisza cyklicznie wybiera znak. Ujemną ilość można wpisać klawiaturą komputera lub α+1 (znak „-”). Ctrl+R albo **Reset systemu** przywraca ustawienia domyślne bez kasowania dokumentów i produktów.
+## Dokument do Subiekta nexo
 
-## Tryby z instrukcji EKP
+1. Na kolektorze wybierz **1 → 1 (Skanuj)**. Wpisz kod po prawej → **SCAN** → ilość → **Enter**. Powtarzający się kod pozostaje osobną pozycją. Skanuj+ oraz Szybki skan są również dostępne.
+2. Wróć **ESC** do menu głównego, wybierz **2. Wyślij**, a następnie dokument. Kolektor pokaże oczekiwanie na PC.
+3. W nexo uruchom odbiór danych z wybranego kolektora przez SUZ. Symulator wysyła zamrożony dokument i czeka na potwierdzenia rekordów oraz końcowe potwierdzenie odbioru.
+4. Domyślnie program zapyta o usunięcie dokumentu dopiero po odbiorze. **Nie** zachowa dane. Automatyczne usuwanie oraz brak usuwania wybiera się w ustawieniach kolektora. Błąd i anulowanie nie kasują dokumentu.
 
-| Opcja | Zachowanie lokalnego symulatora |
-| --- | --- |
-| Skanuj | Każdy odczyt to osobna pozycja, również gdy kod się powtarza. |
-| Skanuj+ | Powtórzony kod sumuje ilości. Ilość ujemna koryguje sumę. Wiersz z sumą 0 pozostaje, zgodnie z opisem obsługi korekt po stronie PC. |
-| Szybki skan | Odczyt zapisuje ilość 1 bez osobnego zatwierdzania ilości. |
-| Dokumenty | Własna nazwa i wybór sklejania albo szybkiego skanowania. Istniejący dokument można kontynuować. |
-| Dok.1 (PZ), Dok.2, Dok.3 | Dokumenty ze stałymi nazwami i własnymi pozycjami. Nie tworzą dokumentów księgowych w Subiekcie. |
-| Ładuj produkty | Lokalny katalog CSV; nazwa, stan i cena są widoczne przy skanowaniu. Wczytanie/usunięcie produktów zeruje sumy, zachowując zwykłe odczyty. |
-| Wyślij | Wybór dokumentu i stan oczekiwania na PC. Jedyny dokument jest wybierany od razu. Potwierdzenie odbioru jest wyłącznie lokalną symulacją. |
-| Usuwanie | Usunięcie wybranego dokumentu, ostatniej pozycji albo produktów. |
+Przy wielu dokumentach przekazywany jest wybrany dokument. Dokumenty Doc.1 / Doc.2 / Doc.3 nie tworzą samoczynnie dokumentów księgowych w nexo; docelową operację wybiera się w Subiekcie.
 
-Ustawienia: ręczne (domyślne), automatyczne lub wyłączone usuwanie po **symulowanym** potwierdzeniu odbioru oraz rodzaj informacji po skanie. **Prędkość EKP z instrukcji wynosi 115200** i jest domyślną wartością diagnostyki COM. Pozostałe parametry dopasuj do sterownika SUZ.
+## Produkty z nexo do kolektora
 
-## Dane, katalog i eksport
+Przy otwartym porcie uruchom wysyłanie produktów do kolektora w nexo przez SUZ. Odbiór rozpoczyna się automatycznie. Można także wybrać **3. Inne → Ładuj produkty**. Katalog jest przyjmowany po sprawdzeniu wszystkich rekordów i zapisaniu sesji. Jak w instrukcji EKP, wczytanie katalogu zeruje ilości w dokumentach ze sklejaniem; zwykłe skany pozostają.
 
-Sesja zapisuje się po zmianach automatycznie w %LocalAppData%\\ZebexSimulator\\session.json i odtwarza przy uruchomieniu. **Zapisz sesję / Wczytaj sesję** służą do przenoszenia kopii JSON; obsługiwane są też pliki z wersji 0.1. Uszkodzony plik automatycznej sesji jest zachowywany i nie jest automatycznie nadpisywany.
+Próbny katalog sprawdzania połączenia nie zmienia danych. Nowy katalog nie jest przyjmowany w trakcie wysyłania dokumentu. Jeśli zmienisz odczyty podczas odbioru lub wystąpi błąd, stare dane zostaną zachowane.
 
-Katalog CSV wymaga nagłówka **Kod;Nazwa;Stan;Cena**, kod jest tekstem, liczby mają kropkę dziesiętną. Dołączony plik **produkty.csv** zawiera:
- 
-    Kod;Nazwa;Stan;Cena
-    5901234123457;Towar demonstracyjny;12;9.99
-    000123;Kod z zerami;5;24.50
+## Obsługa lokalna
 
-Przycisk **Przykładowy katalog** również wczytuje dane demonstracyjne. Katalog CSV jest lokalną symulacją, nie importem z SUZ. Zerowanie istniejących sum wymaga potwierdzenia.
+**Skanuj** zachowuje osobne pozycje. **Skanuj+** sumuje kody, pozwala na ujemne korekty i pozostawia sumę zero. **Szybki skan** ma ilość 1. **Dokumenty** pozwalają nazwać i kontynuować odczyty. **FN**, następnie 1–5, uruchamia skróty; na komputerze F1–F5. **α** przełącza litery i znaki. **BS** kasuje znak, **ESC** wraca, **ON/OFF** zachowuje dane po wyłączeniu ekranu.
 
-Eksport CSV (średnik) / TSV (tabulator) zapisuje wybrany dokument jako UTF-8 z BOM, nagłówkiem Kod / Ilosc i ilościami z kropką dziesiętną. To ogólne formaty wymiany, **nie potwierdzone formaty importu SUZ/nexo**. Eksport sam nie kasuje odczytów i nie udaje transmisji.
+Sesja zapisuje się w `%LocalAppData%\ZebexSimulator\session.json`; JSON można także zapisać i wczytać ręcznie. Sesje wersji 0.1/0.2 pozostają obsługiwane. Uszkodzona automatyczna sesja nie jest nadpisywana. Lokalny katalog CSV używa nagłówka `Kod;Nazwa;Stan;Cena` i kropki dziesiętnej; przykład `produkty.csv` jest w paczce. Eksport CSV/TSV jest pomocniczy i nie stanowi transmisji SUZ.
 
-## Automatyczne porty COM
+Format odczytu biblioteki SUZ używa ASCII i interpretuje cudzysłowy. W nazwach wysyłanych dokumentów i kodach używaj ASCII bez cudzysłowów; program zgłosi niedozwolone dane przed transmisją. Sterownik SUZ zamienia polskie znaki w nazwach wysyłanych produktów przed przekazaniem katalogu.
 
-1. Otwórz **Diagnostyka SUZ / COM** i kliknij **Utwórz parę COM**.
-2. Zaakceptuj monit administratora. Konfigurator pobierze oficjalny podpisany pakiet com0com, sprawdzi SHA-256, w razie potrzeby zainstaluje sterownik i utworzy parę z wolnymi numerami przydzielonymi przez Windows.
-3. Konfigurator testuje przesłanie bajtów w obie strony. Kliknij **Zamknij** w jego oknie.
-4. Program pokaże port dla **SUZ** i wybierze drugi dla **symulatora**. W konfiguracji kolektora SUZ ustaw wskazany port. Dwie aplikacje nie mogą otwierać tego samego portu.
-5. Dopasuj parametry COM (EKP: **115200**) i kliknij **Połącz** w symulatorze. Wywołaj komunikację w SUZ. **RX** pokazuje odebrane bajty; **TX** pozwala ręcznie wysłać HEX lub ASCII.
+## Most SUZ i przywracanie
 
-Pierwsza instalacja wymaga Internetu i administratora. Zgodność starego sterownika com0com z konkretną konfiguracją Windows 10/11 nie jest gwarantowana. Jeśli Windows odrzuci sterownik, aplikacja zatrzyma konfigurację i **nie wyłączy podpisów, Secure Boot ani innych zabezpieczeń**. Nie instaluje unsigned/test-signed wariantu i nie tworzy portów przez modyfikację samego rejestru.
+Most instaluje się tylko dla dokładnie rozpoznanej DLL i narzędzi SUZ 19.2. Nie modyfikuje DLL InsERT, bazy Subiekta ani podpisów oryginalnych plików. Zastępuje `zac_dataReader.exe` i `zac_dlookup.exe` własnymi programami i dodaje runtime do `Binaries\Elzab\KolektorPlusZebex`. Kopie oryginałów są w `zebex-original-tools`. Manifest SHA-256 chroni przed nadpisywaniem plików zmienionych przez aktualizację SUZ.
 
-Aplikacja zapamiętuje własną parę i sprawdza jej rzeczywistą konfigurację; przy ponowieniu testuje ją zamiast dodawać duplikat. Nie usuwa par innych programów. Przed ponownym testem zamknij SUZ lub inne programy używające własnej pary. Stan i raport konfiguracji: %ProgramData%\\ZebexSimulator. com0com można odinstalować w ustawieniach aplikacji Windows.
+**Przywróć oryginalne narzędzia SUZ** odtwarza kopie i usuwa pliki mostu. Użyj tego przed podłączeniem fizycznego kolektora. Nie uruchamiaj instalacji mostu i aktualizacji SUZ równocześnie. Inna wersja plików albo niestandardowy katalog sterowników powoduje zatrzymanie instalatora bez zmiany narzędzi.
 
-Źródło: [oryginalny projekt com0com](https://sourceforge.net/projects/com0com/files/com0com/3.0.0.0/). Pakiet: com0com-3.0.0.0-i386-and-x64-signed.zip. SHA-256: 6e5d4359865277430d4ae88c73fb7e648a0ed8e81aea5002478179cfcb0bb0e1. Sterownik jest projektem GPL; EXE pobiera oryginalny pakiet przez HTTPS. Sterownik nie jest dołączony do ZIP symulatora.
-
-**Test pary potwierdza połączenie COM, nie zgodność z SUZ.** SUZ może zgłosić brak odpowiedzi, bo protokół kolektora nie jest obsługiwany. RX pokazuje porcje odczytu, nie ustalone ramki. Do dalszej integracji potrzeba specyfikacji protokołu albo wiarygodnego zapisu odpowiedzi urządzenia oraz wersji SUZ i nazwy sterownika. Same żądania SUZ mogą nie wystarczyć. Testuj na środowisku testowym Subiekta.
+Konfigurator COM pobiera podpisany com0com z [SourceForge](https://sourceforge.net/projects/com0com/files/com0com/3.0.0.0/) i sprawdza przypięty SHA-256. Reużywa własną parę, testuje oba kierunki i nie usuwa par innych programów. Nie wyłącza podpisów, Secure Boot ani innych zabezpieczeń. Pierwsza instalacja portów wymaga Internetu i administratora; nie jest potrzebna, jeśli para już działa.
 
 ## Budowanie i walidacja
 
-Na Windows z .NET SDK 8 uruchom build-windows.ps1. Wynik: artifacts/windows-x64/ZebexSimulator.exe, samodzielny EXE z dołączonym .NET. Sam symulator nie jest podpisany certyfikatem wydawcy.
+Windows: `build-windows.ps1` z SDK .NET 8. Linux: `bash setup-cloud.sh`, który przygotowuje SDK 8.0.425, wykonuje cztery zestawy testów i buduje EXE oraz `suz-bridge` z manifestem.
 
-Na Linux uruchom bash setup-cloud.sh. Skrypt instaluje SDK 8.0.425 z weryfikacją oficjalnego SHA-512, uruchamia testy i buduje Windows EXE. Osobno: dotnet run --project tests/Zebex.Checks -c Release.
+Walidacja 0.3: **92 testy** logiki, bezpieczeństwa, formatów i protokołu; kompilacja Windows; rzeczywisty test dwóch portów szeregowych PTY na Linux z uruchomionym procesem mostu. Sprawdzono status bez zmiany danych, odczyt dokumentu, przyjęcie katalogu, błąd zapisu pliku i zachowanie odczytów. Plik odczytany przez most oraz format katalogu sprawdzono z oryginalną DLL użytkownika.
 
-Zweryfikowano 30 testów logiki danych, formatów, trybów EKP, korekt, dokumentów, trwałości sesji, katalogu, parsowania par COM i sumy kontrolnej pakietu. Kompilacja i integralność ZIP są sprawdzane osobno. **Interfejs Windows, instalacja sterownika, podwyższenie uprawnień i komunikacja z SUZ nie zostały wykonane w środowisku Linux.** Test transmisji pary uruchamia się dopiero na Windows.
+**SUZ 19.2 i Subiekt nexo nie zostały uruchomione na Windows w tym środowisku.** Test PTY sprawdza transport i procesy, ale nie zastępuje końcowego testu w nexo. Instalacja mostu, restart usługi i GUI wymagają sprawdzenia na komputerze użytkownika. Szczegóły: [docs/SUZ-integration.md](docs/SUZ-integration.md).
