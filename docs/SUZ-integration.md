@@ -1,5 +1,9 @@
 # Integracja SUZ — stan prac
 
+Rozszerzenie0.4 dodaje telefon Android i serwer Wi-Fi. Podstawowy protokół SUZ oraz most pozostają opisane poniżej. Telefon przesyła niezmienne dokumenty z UUID przez TLS, parowane QR z pinem SHA256 certyfikatu. Tokeny dostępu i klucz certyfikatu Windows są chronione DPAPI CurrentUser. Import zapisuje dokument i pokwitowanie do jednego atomowo podmienianego JSON przed odpowiedzią. Historia UUID zapobiega powieleniu dokumentu po retry, usunięciu i restarcie. Odczyty telefonu są zamknięte do edycji i nie są zerowane przy przyjęciu katalogu. Komunikacja z CollectorSession jest wykonywana na wątku UI. MainForm uzbraja najstarszy oczekujący dokument, a potwierdzenie Time ustawia status suz.
+
+Walidacja0.4:118 testów .NET i10 testów Robolectric. tests/phone-integration.py prowadzi klienta Link z kodu APK przez rzeczywisty serwer TLS, dwa PTY i proces SUZ bridge, weryfikując plik i końcowy status. Test odrzuca błędny pin certyfikatu. Aparat fizycznego telefonu, okno Windows i SUZ/nexo wymagają weryfikacji na urządzeniach użytkownika. [Instrukcja telefonu](TELEFON-Android.md).
+
 Docelowa wersja użytkownika: SUZ 19.2, model „Elzab Kolektor Plus (Zebex)”. Wersja 0.3 implementuje transmisję dokumentów, katalogu i test połączenia. Wymaga własnego mostu SUZ, instalowanego przyciskiem w EXE, ponieważ oryginalne narzędzia wymuszają obecność fizycznego USB. Test pełnego programu SUZ/nexo na Windows pozostaje do wykonania.
 
 ## Potwierdzone informacje

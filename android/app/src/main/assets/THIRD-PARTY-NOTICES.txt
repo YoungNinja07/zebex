@@ -1,0 +1,15 @@
+Zebex Phone uses these open-source components:
+
+ZXing Android Embedded 4.3.0 — Journey Mobile / JourneyApps
+https://github.com/journeyapps/zxing-android-embedded
+Apache License, Version 2.0.
+
+ZXing Core — ZXing authors
+https://github.com/zxing/zxing
+Apache License, Version 2.0.
+
+AndroidX components, where included — Android Open Source Project
+https://developer.android.com/jetpack/androidx
+Apache License, Version 2.0.
+
+The full Apache 2.0 license is included in APACHE-2.0.txt in this APK.

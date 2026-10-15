@@ -1,4 +1,10 @@
-# Zebex Simulator 0.3 — Windows x64, EKP / SUZ 19.2
+# Zebex Phone / Simulator 0.4 — Android + Windows, SUZ 19.2
+
+**Telefon z Androidem może zastąpić kolektor.** Wersja0.4 dodaje APK ze skanowaniem aparatem, ilościami i lokalną bazą odczytów oraz zakładkę Telefon Android / Wi-Fi w Windows. Telefon i komputer są parowane QR, z szyfrowaniem i przypięciem certyfikatu. Dokumenty są kolejkowane i odbierane w nexo przez SUZ. [Instrukcja telefonu](docs/TELEFON-Android.md).
+
+Telefon wymaga Androida7.0 lub nowszego i wspólnego Wi-Fi z komputerem. Na komputerze nadal działa most SUZ opisany poniżej. W nexo uruchamiasz odbiór z kolektora; aplikacja nie zatwierdza automatycznie dokumentów księgowych.
+
+Walidacja0.4: **118 testów .NET i 10 Androida w Robolectric**, w tym pełny test kodu klienta Android przez TLS i porty szeregowe z procesem mostu. Zbudowano podpisany APK i Windows EXE. Aparat fizycznego telefonu i SUZ/nexo na Windows pozostają do sprawdzenia na urządzeniach użytkownika.
 
 Samodzielny Windows EXE do sprawdzenia obsługi kolektora przed zakupem. Ekran, klawiatura i menu odtwarzają dostarczoną instrukcję EKP. Aplikacja i most SUZ zawierają .NET; nie wymagają Pythona ani instalowania .NET. Projekt jest niezależny od ZEBEX, ELZAB i InsERT.
 

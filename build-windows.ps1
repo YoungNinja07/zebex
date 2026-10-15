@@ -8,6 +8,8 @@ dotnet run --project tests/Ekp.Checks -c Release
 if ($LASTEXITCODE -ne 0) { throw 'Testy formatów danych EKP nie powiodły się.' }
 dotnet run --project tests/Protocol.Checks -c Release
 if ($LASTEXITCODE -ne 0) { throw 'Testy protokołu nie powiodły się.' }
+dotnet run --project tests/Phone.Checks -c Release
+if ($LASTEXITCODE -ne 0) { throw 'Testy połączenia telefonu nie powiodły się.' }
 dotnet publish src/Zebex.SuzBridge -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false -o artifacts/windows-x64/suz-bridge
 if ($LASTEXITCODE -ne 0) { throw 'Budowa mostu SUZ nie powiodła się.' }
 dotnet publish src/Zebex.Simulator -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o artifacts/windows-x64
@@ -19,4 +21,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Manifest paczki nie powiódł się.' }
 Copy-Item docs/START-Windows.md artifacts/windows-x64/INSTRUKCJA.md -Force
 Copy-Item README.md artifacts/windows-x64/README.md -Force
 Copy-Item examples/produkty.csv artifacts/windows-x64/produkty.csv -Force
+Copy-Item docs/QRCoder-LICENSE.txt artifacts/windows-x64/QRCoder-LICENSE.txt -Force
+Copy-Item docs/TELEFON-Android.md artifacts/windows-x64/TELEFON-Android.md -Force
 Write-Host 'Gotowe: artifacts/windows-x64/ZebexSimulator.exe'

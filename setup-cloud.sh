@@ -21,6 +21,7 @@ dotnet run --project tests/Zebex.Checks -c Release
 dotnet run --project tests/Transfer.Checks -c Release
 dotnet run --project tests/Ekp.Checks -c Release
 dotnet run --project tests/Protocol.Checks -c Release
+dotnet run --project tests/Phone.Checks -c Release
 dotnet publish src/Zebex.SuzBridge -c Release -r win-x64 --self-contained true -p:DebugType=None -p:DebugSymbols=false -o artifacts/windows-x64/suz-bridge
 dotnet publish src/Zebex.Simulator -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o artifacts/windows-x64
 cp artifacts/windows-x64/suz-bridge/ZebexSuzBridge.exe artifacts/windows-x64/suz-bridge/zac_dataReader.exe
@@ -29,3 +30,5 @@ dotnet run --project tests/Protocol.Checks -c Release -- --manifest artifacts/wi
 cp docs/START-Windows.md artifacts/windows-x64/INSTRUKCJA.md
 cp README.md artifacts/windows-x64/README.md
 cp examples/produkty.csv artifacts/windows-x64/produkty.csv
+cp docs/QRCoder-LICENSE.txt artifacts/windows-x64/QRCoder-LICENSE.txt
+cp docs/TELEFON-Android.md artifacts/windows-x64/TELEFON-Android.md

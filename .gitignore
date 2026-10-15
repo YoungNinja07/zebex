@@ -2,4 +2,9 @@
 **/obj/
 artifacts/
 .vs/
+**/.gradle/
+**/build/
+android/local.properties
+*.keystore
+*.jks
 

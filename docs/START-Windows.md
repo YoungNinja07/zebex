@@ -1,4 +1,6 @@
-# Zebex Simulator 0.3 — uruchomienie
+# Zebex Simulator / Phone 0.4 — uruchomienie
+
+Telefon Android zastępuje kolektor przez wspólne Wi-Fi. Po konfiguracji SUZ poniżej otwórz **Telefon Android / Wi-Fi**, zezwól na połączenie w Windows i włącz telefony. Na Androidzie zainstaluj APK i zeskanuj QR przyciskiem Połącz. Pełna instrukcja: TELEFON-Android.md.
 
 1. Rozpakuj cały ZIP. Uruchom ZebexSimulator.exe. Folder suz-bridge musi być obok EXE.
 2. W Diagnostyka SUZ / COM kliknij **Zainstaluj most SUZ** i zaakceptuj administratora. Zamknij okno po komunikacie o zakończeniu. Most zachowuje kopie oryginalnych narzędzi SUZ.
@@ -20,4 +22,4 @@ Przycisk **Przywróć oryginalne narzędzia SUZ** odtwarza kopie z zebex-origina
 
 ## Co sprawdzono
 
-92 testy, kompilację Windows, transmisję między portami szeregowymi z uruchomionym procesem mostu i zgodność pliku dokumentu z oryginalną DLL SUZ. SUZ/nexo i instalatora na Twoim Windows nie uruchomiono w środowisku chmurowym. Jeśli po instalacji wystąpi błąd, zapisz log przyciskiem Zapisz log oraz skopiuj komunikat SUZ.
+118 testów .NET, 10 testów Androida w Robolectric, kompilację Windows, transmisję między portami szeregowymi z procesem mostu i zgodność pliku dokumentu z oryginalną DLL SUZ. Sprawdzono także kod klienta Android przez HTTPS i most do pliku SUZ. Aparatu na fizycznym telefonie, SUZ/nexo i instalatora na Windows nie uruchomiono w chmurze. Jeśli wystąpi błąd, zapisz log przyciskiem Zapisz log oraz skopiuj komunikat z telefonu lub SUZ.

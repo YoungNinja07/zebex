@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Media;
 using System.Text;
 using Zebex.Core;
+using Zebex.PhoneLink;
 
 namespace Zebex.Simulator;
 
@@ -282,7 +283,9 @@ internal sealed class CollectorView : UserControl
             session.CancelTransfer(snapshot); pendingSend = null;
             Navigate(Page.Home); ShowCommunicationStatus("Odczyty zmieniły się podczas transmisji. Dokument zachowano bez usuwania."); return;
         }
-        var delete = snapshot.DeletionPolicy == DeleteAfterSending.Manual
+        var fromPhone = live.PhoneRequestId != null;
+        if (session.MarkPhoneReceivedBySuz(snapshot)) Persist();
+        var delete = !fromPhone && snapshot.DeletionPolicy == DeleteAfterSending.Manual
             && MessageBox.Show(this, "SUZ potwierdził odbiór dokumentu „" + snapshot.Name + "”. Usunąć go z kolektora?", "Odbiór potwierdzony", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
         // A serial failure or cancellation may arrive while the manual-deletion dialog pumps messages.
         if (!ReferenceEquals(pendingSend, snapshot)) { session.CancelTransfer(snapshot); return; }
@@ -341,6 +344,39 @@ internal sealed class CollectorView : UserControl
     public void ShowCommunicationStatus(string text)
     {
         communicationStatus = text; message.Text = text; RefreshDisplay();
+    }
+
+    public PhoneReceipt AcceptPhoneDocument(Guid clientId, PhoneUpload upload)
+    {
+        if (!canAutoSave) throw new IOException("Zapis sesji jest wstrzymany.");
+        var saved = false;
+        var receipt = session.ImportPhoneDocument(clientId, upload, json =>
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(stateFile)!);
+                File.WriteAllText(stateFile + ".tmp", json, Encoding.UTF8);
+                File.Move(stateFile + ".tmp", stateFile, true);
+            }
+            catch (UnauthorizedAccessException e) { throw new IOException("Nie zapisano dokumentu na komputerze.", e); }
+            saved = true;
+        });
+        if (saved) HasUnsavedChanges = false; RefreshView(); return receipt;
+    }
+    public PhoneReceipt? PhoneDocumentStatus(Guid clientId, Guid id) => session.GetPhoneReceipt(id, clientId);
+    public PhoneProductPage PhoneProducts(int offset, int limit, string? revision)
+    {
+        if (revision != null && revision != session.CatalogVersion) throw new InvalidOperationException("Katalog zmienił się podczas pobierania. Pobierz go ponownie.");
+        var products = session.Products.OrderBy(p => p.Code, StringComparer.Ordinal).Skip(offset).Take(limit).ToArray();
+        return new(offset, session.Products.Count, session.CatalogVersion, offset + products.Length < session.Products.Count, products);
+    }
+    public void TryArmPhoneDocument()
+    {
+        if (!powered || pendingSend != null || pendingReceive != null || page is Page.Scan or Page.Test) return;
+        var receipt = session.PhoneReceipts.Where(r => r.Status == "queued").OrderBy(r => r.CreatedAtUtc).FirstOrDefault();
+        if (receipt == null) return;
+        current = session.Documents.FirstOrDefault(d => d.PhoneRequestId == receipt.Id);
+        if (current != null) Navigate(Page.Sending);
     }
 
     public bool PrepareAutomaticCatalogReception()

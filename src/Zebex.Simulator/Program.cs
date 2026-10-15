@@ -7,6 +7,7 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
         if (args.Length == 1 && args[0] == "--create-com-pair") Application.Run(new ComPairSetupForm());
+        else if (args.Length == 1 && args[0] == "--setup-phone-network") Application.Run(new PhoneNetworkSetupForm());
         else if (args.Length == 1 && args[0] is "--install-suz-bridge" or "--restore-suz-bridge") Application.Run(new SuzBridgeSetupForm(args[0] == "--restore-suz-bridge"));
         else Application.Run(new MainForm());
     }

@@ -8,9 +8,9 @@ public enum ScanMode { Separate, Summed, Quick }
 public enum DeleteAfterSending { Manual, Automatic, Never }
 public enum ScanFeedback { None, Count, Data }
 public sealed record Product(string Code, string Name, decimal Stock, decimal Price);
-public sealed record DocumentSnapshot(string Name, ScanMode Mode, List<Scan> Rows);
+public sealed record DocumentSnapshot(string Name, ScanMode Mode, List<Scan> Rows, Guid? PhoneRequestId = null);
 public sealed record SessionSnapshot(int Version, List<DocumentSnapshot> Documents, List<Product> Products,
-    DeleteAfterSending Deletion, ScanFeedback Feedback);
+    DeleteAfterSending Deletion, ScanFeedback Feedback, List<PhoneReceipt>? PhoneReceipts = null);
 
 public sealed class CollectorDocument(string name, ScanMode mode)
 {
@@ -20,8 +20,10 @@ public sealed class CollectorDocument(string name, ScanMode mode)
     public string Name { get; } = name;
     public ScanMode Mode { get; } = mode;
     public IReadOnlyList<Scan> Rows => rows.AsReadOnly();
+    public Guid? PhoneRequestId { get; internal set; }
     public void Add(string code, decimal quantity)
     {
+        if (PhoneRequestId != null) throw new InvalidOperationException("Dokument z telefonu jest zamknięty. Nowe odczyty zapisz w nowym dokumencie.");
         code = ValidateCode(code);
         if (Mode == ScanMode.Quick) quantity = 1;
         if (quantity == 0 || (Mode != ScanMode.Summed && quantity < 0))
@@ -43,10 +45,10 @@ public sealed class CollectorDocument(string name, ScanMode mode)
             Revision++;
         }
     }
-    public void RemoveLast() { if (rows.Count > 0) { rows.RemoveAt(rows.Count - 1); Revision++; } }
+    public void RemoveLast() { if (PhoneRequestId != null) throw new InvalidOperationException("Nie można zmieniać zamkniętego dokumentu z telefonu."); if (rows.Count > 0) { rows.RemoveAt(rows.Count - 1); Revision++; } }
     internal void ResetSums()
     {
-        if (Mode != ScanMode.Summed || !rows.Any(r => r.Quantity != 0)) return;
+        if (PhoneRequestId != null || Mode != ScanMode.Summed || !rows.Any(r => r.Quantity != 0)) return;
         for (var i = 0; i < rows.Count; i++) rows[i] = rows[i] with { Quantity = 0 };
         Revision++;
     }
@@ -67,7 +69,7 @@ public sealed class CollectorDocument(string name, ScanMode mode)
     internal static string Escape(string text, char separator) => text.IndexOfAny([separator, '"', '\r', '\n']) >= 0 ? "\"" + text.Replace("\"", "\"\"") + "\"" : text;
 }
 
-public sealed class CollectorSession
+public sealed partial class CollectorSession
 {
     private readonly List<CollectorDocument> documents = [];
     private Dictionary<string, Product> products = new(StringComparer.Ordinal);
@@ -78,6 +80,7 @@ public sealed class CollectorSession
     public Guid SessionId { get; } = Guid.NewGuid();
     public IReadOnlyList<CollectorDocument> Documents => documents.AsReadOnly();
     public IReadOnlyCollection<Product> Products => products.Values;
+    public string CatalogVersion => SessionId.ToString("N") + ":" + catalogRevision;
     public DeleteAfterSending Deletion { get; set; } = DeleteAfterSending.Manual;
     public ScanFeedback Feedback { get; set; } = ScanFeedback.Count;
     public CollectorDocument Open(string name, ScanMode mode)
@@ -95,6 +98,9 @@ public sealed class CollectorSession
     public Product? FindProduct(string code) => products.GetValueOrDefault(code);
     public void DeleteDocument(string name)
     {
+        foreach (var doc in documents.Where(d => d.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            if (doc.PhoneRequestId is Guid id && phoneReceipts.TryGetValue(id, out var receipt) && receipt.Status != "suz")
+                phoneReceipts[id] = receipt with { Status = "removed" };
         var removed = documents.Where(d => d.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).Select(d => d.DocumentId).ToHashSet();
         documents.RemoveAll(d => removed.Contains(d.DocumentId));
         foreach (var token in pendingTransfers.Where(p => removed.Contains(p.Value.DocumentId)).Select(p => p.Key).ToArray()) pendingTransfers.Remove(token);
@@ -200,9 +206,9 @@ public sealed class CollectorSession
     {
         if (Deletion == DeleteAfterSending.Automatic || (Deletion == DeleteAfterSending.Manual && userConfirmedDeletion)) DeleteDocument(name);
     }
-    public string ToJson() => JsonSerializer.Serialize(new SessionSnapshot(1,
-        documents.Select(d => new DocumentSnapshot(d.Name, d.Mode, d.Rows.ToList())).ToList(),
-        products.Values.ToList(), Deletion, Feedback), new JsonSerializerOptions { WriteIndented = true });
+    public string ToJson() => JsonSerializer.Serialize(new SessionSnapshot(2,
+        documents.Select(d => new DocumentSnapshot(d.Name, d.Mode, d.Rows.ToList(), d.PhoneRequestId)).ToList(),
+        products.Values.ToList(), Deletion, Feedback, phoneReceipts.Values.ToList()), new JsonSerializerOptions { WriteIndented = true });
     public static CollectorSession FromJson(string json)
     {
         // Keep sessions saved by the first public version readable.
@@ -215,14 +221,15 @@ public sealed class CollectorSession
             return restored;
         }
         var snapshot = JsonSerializer.Deserialize<SessionSnapshot>(json) ?? throw new ArgumentException("Pusta sesja.");
-        if (snapshot.Version != 1 || snapshot.Documents == null || snapshot.Products == null || !Enum.IsDefined(snapshot.Deletion) || !Enum.IsDefined(snapshot.Feedback)) throw new ArgumentException("Nieobsługiwany lub uszkodzony format sesji.");
+        if (snapshot.Version is not (1 or 2) || snapshot.Documents == null || snapshot.Products == null || !Enum.IsDefined(snapshot.Deletion) || !Enum.IsDefined(snapshot.Feedback)) throw new ArgumentException("Nieobsługiwany lub uszkodzony format sesji.");
         var result = new CollectorSession { Deletion = snapshot.Deletion, Feedback = snapshot.Feedback };
         result.LoadProducts(snapshot.Products);
         foreach (var doc in snapshot.Documents)
         {
             if (!Enum.IsDefined(doc.Mode) || doc.Rows == null || result.documents.Any(d => d.Name.Equals(doc.Name, StringComparison.OrdinalIgnoreCase))) throw new ArgumentException("Nieprawidłowy dokument w sesji.");
-            result.Open(doc.Name, doc.Mode).Restore(doc.Rows);
+            var restored = result.Open(doc.Name, doc.Mode); restored.Restore(doc.Rows); restored.PhoneRequestId = doc.PhoneRequestId;
         }
+        result.RestorePhoneReceipts(snapshot.PhoneReceipts ?? []);
         return result;
     }
 }

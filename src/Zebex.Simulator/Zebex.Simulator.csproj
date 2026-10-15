@@ -9,11 +9,14 @@
     <AssemblyName>ZebexSimulator</AssemblyName>
     <Product>Zebex Simulator — niezależny symulator EKP</Product>
     <Description>Symulator kolektora EKP, transmisja COM i most SUZ 19.2</Description>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Zebex.Core/Zebex.Core.csproj" />
+    <ProjectReference Include="../Zebex.PhoneLink/Zebex.PhoneLink.csproj" />
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
 </Project>

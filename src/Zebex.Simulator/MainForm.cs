@@ -29,10 +29,12 @@ public sealed class MainForm : Form
     private bool pairSetupRunning;
     private readonly ZacDevice protocol = new();
     private readonly System.Windows.Forms.Timer protocolTimer = new() { Interval = 100 };
+    private readonly PhonePanel phones;
+    private DateTime lastPhoneArm;
 
     public MainForm()
     {
-        Text = "Zebex Simulator 0.3 — SUZ / EKP";
+        Text = "Zebex Simulator 0.4 — Telefon / SUZ / EKP";
         MinimumSize = new Size(1000, 700);
         Size = new Size(1280, 860);
         StartPosition = FormStartPosition.CenterScreen;
@@ -42,6 +44,8 @@ public sealed class MainForm : Form
         var scanTab = new TabPage("Z-9000 / EKP — kolektor") { Padding = new Padding(8), AutoScroll = true };
         var serialTab = new TabPage("Diagnostyka SUZ / COM") { Padding = new Padding(16) };
         tabs.TabPages.AddRange([scanTab, serialTab]);
+        phones = new PhonePanel(collector); phones.Log += AppendMessage;
+        var phoneTab = new TabPage("Telefon Android / Wi-Fi"); phoneTab.Controls.Add(phones); tabs.TabPages.Add(phoneTab);
         scanTab.Controls.Add(collector);
         collector.Dock = DockStyle.None;
         scanTab.Resize += (_, _) => collector.Size = new Size(Math.Max(1080, scanTab.ClientSize.Width - 20), Math.Max(630, scanTab.ClientSize.Height - 20));
@@ -54,7 +58,12 @@ public sealed class MainForm : Form
         collector.SendDocumentRequested += snapshot => { EnsureProtocolPort(); protocol.Arm(snapshot); AppendMessage("Gotowość do wysłania: " + snapshot.Name); };
         collector.ReceiveProductsRequested += _ => EnsureProtocolPort();
         collector.CommunicationCancelled += protocol.Cancel;
-        protocolTimer.Tick += (_, _) => Guard(() => protocol.Tick(DateTime.UtcNow));
+        protocolTimer.Tick += (_, _) => Guard(() =>
+        {
+            protocol.Tick(DateTime.UtcNow);
+            if (phones.Running && serial?.IsOpen == true && !protocol.IsBusy && DateTime.UtcNow - lastPhoneArm > TimeSpan.FromSeconds(1))
+            { lastPhoneArm = DateTime.UtcNow; collector.TryArmPhoneDocument(); }
+        });
         protocolTimer.Start();
         Controls.Add(tabs); Controls.Add(notice); Controls.Add(heading); Controls.Add(status);
         FormClosing += (_, e) =>
@@ -62,6 +71,7 @@ public sealed class MainForm : Form
             if (pairSetupRunning) { e.Cancel = true; MessageBox.Show(this, "Najpierw zakończ konfigurację portów w oknie instalacji."); return; }
             if (collector.HasUnsavedChanges && MessageBox.Show(this, "Nie udało się zapisać bieżącej sesji. Zamknąć program bez zapisania?", "Zamknięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { e.Cancel = true; return; }
             ClosePort();
+            _ = phones.StopAsync();
             protocolTimer.Stop(); protocolTimer.Dispose();
         };
         Shown += (_, _) => { var available = Screen.FromControl(this).WorkingArea; Size = new Size(Math.Min(Width, available.Width), Math.Min(Height, available.Height)); };
@@ -111,7 +121,11 @@ public sealed class MainForm : Form
         parent.Controls.Add(new Label { Dock = DockStyle.Top, Height = 106, Text = "1. Zainstaluj most SUZ — zapisze kopie oryginałów i umożliwi pracę bez urządzenia USB.\n2. SUZ: Elzab Kolektor Plus (Zebex), drugi port pary, 115200. Symulator: własny port, 115200 / 8 / None / One.\n3. Połącz port. Test SUZ odbierany jest automatycznie. Dokument: 2. Wyślij na kolektorze, potem odbiór w nexo.\nKatalog produktów odbierany jest automatycznie; potwierdzenie następuje po przyjęciu całego katalogu." });
         RefreshPorts();
         var saved = ComPairInstaller.SavedPair();
-        if (saved != null) pairInfo.Text = $"Ostatnia para — SUZ: {saved.SuzPort} / symulator: {saved.SimulatorPort}";
+        if (saved != null)
+        {
+            pairInfo.Text = $"Ostatnia para — SUZ: {saved.SuzPort} / symulator: {saved.SimulatorPort}";
+            if (ports.Items.Contains(saved.SimulatorPort)) ports.SelectedItem = saved.SimulatorPort;
+        }
     }
 
     private async Task CreatePairAsync()
