@@ -66,5 +66,5 @@ export ZEBEX_ANDROID_PASSWORD_FILE="$SIGNING_ROOT/password"
 cd /workspace/zebex/android
 "$TOOLS_ROOT/gradle-8.9/bin/gradle" --no-daemon :app:assembleRelease :app:lintRelease
 mkdir -p ../artifacts
-cp app/build/outputs/apk/release/app-release.apk ../artifacts/Zebex-Phone-Android-v0.4.0.apk
-"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify ../artifacts/Zebex-Phone-Android-v0.4.0.apk
+cp app/build/outputs/apk/release/app-release.apk ../artifacts/Zebex-Phone-Android-v0.4.1.apk
+"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify ../artifacts/Zebex-Phone-Android-v0.4.1.apk

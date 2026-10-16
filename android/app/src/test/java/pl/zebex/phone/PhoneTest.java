@@ -76,6 +76,15 @@ public class PhoneTest {
         org.robolectric.shadows.ShadowLooper.idleMainLooper();AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();input(dialog.getWindow().getDecorView()).setText("2,5");dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
         String id=activity.getSharedPreferences("connection",Context.MODE_PRIVATE).getString("current","");assertEquals("2.5",store.scans(id).getJSONObject(0).getString("quantity"));controller.pause().stop().destroy();
     }
+    @Test @Config(sdk = {28, 30}) public void scannerScreenResumesAndRequestsCameraPermission() {
+        var controller=Robolectric.buildActivity(com.journeyapps.barcodescanner.CaptureActivity.class,
+            new Intent().setAction("com.google.zxing.client.android.SCAN").putExtra("ORIENTATION_LOCKED",false)).setup();
+        assertNotNull(controller.get().findViewById(controller.get().getResources().getIdentifier("zxing_barcode_scanner","id","pl.zebex.phone")));
+        var permissions=org.robolectric.Shadows.shadowOf(controller.get()).getLastRequestedPermission();
+        assertNotNull(permissions);
+        assertArrayEquals(new String[]{android.Manifest.permission.CAMERA},permissions.requestedPermissions);
+        controller.pause().stop().destroy();
+    }
     @Test public void cameraResultUsesSameDurableScanPath() throws Exception {
         var controller=Robolectric.buildActivity(MainActivity.class).setup();MainActivity activity=controller.get();
         activity.onActivityResult(51002,MainActivity.RESULT_OK,new Intent().putExtra("SCAN_RESULT","000456"));org.robolectric.shadows.ShadowLooper.idleMainLooper();AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
