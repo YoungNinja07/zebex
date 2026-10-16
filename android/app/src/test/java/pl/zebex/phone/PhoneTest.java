@@ -59,6 +59,21 @@ public class PhoneTest {
     @Test public void barcodeTextRejectsDataThatWouldBeCorruptedBySuz() {
         MainActivity.validateText("000123",128,"Kod");rejects(()->MainActivity.validateText("Zażółć",128,"Kod"));rejects(()->MainActivity.validateText("A\tB",128,"Kod"));rejects(()->MainActivity.validateText("A\"B",128,"Kod"));
     }
+    @Test public void tlsErrorsDistinguishPinsClocksAndHandshakeFailures() {
+        javax.net.ssl.SSLHandshakeException mismatch = new javax.net.ssl.SSLHandshakeException("Handshake failed");
+        mismatch.initCause(new Link.PinMismatchException("QR: ABCDEF123456, komputer: 123456ABCDEF"));
+        assertTrue(Link.tlsError(mismatch).contains("inny certyfikat"));
+        assertTrue(Link.tlsError(mismatch).contains("ABCDEF123456"));
+        javax.net.ssl.SSLHandshakeException future = new javax.net.ssl.SSLHandshakeException("Handshake failed");
+        future.initCause(new java.security.cert.CertificateNotYetValidException("not before 2026-10-16"));
+        assertTrue(Link.tlsError(future).contains("nie jest jeszcze ważny"));
+        javax.net.ssl.SSLHandshakeException expired = new javax.net.ssl.SSLHandshakeException("Handshake failed");
+        expired.initCause(new java.security.cert.CertificateExpiredException("not after 2031-10-16"));
+        assertTrue(Link.tlsError(expired).contains("wygasł"));
+        String protocol = Link.tlsError(new javax.net.ssl.SSLProtocolException("protocol_version"));
+        assertTrue(protocol.contains("SSLProtocolException"));assertTrue(protocol.contains("protocol_version"));
+        assertFalse(protocol.contains("Zeskanuj ponownie"));assertNull(Link.tlsError(new java.io.IOException("offline")));
+    }
     @Test public void pairingQrRequiresLocalHttpsAndPinnedCertificate() throws Exception {
         JSONObject valid=new JSONObject().put("v",1).put("url","https://192.168.1.20:18790").put("pin","A".repeat(64)).put("code","123456");assertEquals("123456",Link.validatePairQr(valid.toString()).getString("code"));
         for(String bad:new String[]{"http://192.168.1.20:18790","https://example.com:18790","https://8.8.8.8:18790","https://192.168.1.20:80","https://192.168.1.20:18790/path","https://user@192.168.1.20:18790"}){

@@ -43,6 +43,34 @@ final class Link {
         if (!paired()) throw new IllegalArgumentException("Najpierw połącz telefon z komputerem kodem QR.");
         return request(preferences.getString("url", ""), preferences.getString("pin", ""), preferences.getString("token", ""), method, path, body);
     }
+    static final class PinMismatchException extends CertificateException {
+        PinMismatchException(String detail) { super(detail); }
+    }
+    private static String hex(byte[] bytes) {
+        StringBuilder result = new StringBuilder();
+        for (byte value : bytes) result.append(String.format(Locale.ROOT,"%02X",value & 255));
+        return result.toString();
+    }
+    static String tlsError(Exception error) {
+        if (!(error instanceof javax.net.ssl.SSLException)) return null;
+        Throwable cause = error;
+        for (int i=0; cause != null && i<12; i++,cause=cause.getCause()) {
+            if (cause instanceof PinMismatchException)
+                return "Komputer zwrócił inny certyfikat niż zapisany w QR. " + cause.getMessage() + ". Sprawdź, czy działa jedna instancja programu i wybrano adres właściwego komputera.";
+            if (cause instanceof java.security.cert.CertificateNotYetValidException)
+                return "Certyfikat komputera nie jest jeszcze ważny według zegara telefonu. Sprawdź datę i godzinę Windows oraz Androida. Szczegóły: " + cause.getMessage();
+            if (cause instanceof java.security.cert.CertificateExpiredException)
+                return "Certyfikat komputera wygasł według zegara telefonu. Sprawdź datę i godzinę Windows oraz Androida. Szczegóły: " + cause.getMessage();
+        }
+        StringBuilder detail = new StringBuilder(); cause = error;
+        for (int i=0; cause != null && i<5; i++,cause=cause.getCause()) {
+            if (i>0) detail.append("\n");
+            detail.append(cause.getClass().getSimpleName()).append(": ");
+            String message = cause.getMessage();
+            if (message != null) detail.append(message.substring(0,Math.min(message.length(),500)));
+        }
+        return "Nie udało się uzgodnić szyfrowanego połączenia z komputerem. To nie musi być niezgodność certyfikatu.\n\nSzczegóły błędu:\n" + detail;
+    }
     private static byte[] fingerprint(X509Certificate c) throws Exception { return MessageDigest.getInstance("SHA-256").digest(c.getEncoded()); }
     private static byte[] unhex(String value) { byte[] b = new byte[value.length()/2]; for (int i = 0; i < b.length; i++) b[i] = (byte)Integer.parseInt(value.substring(i*2, i*2+2),16); return b; }
     private static JSONObject request(String base, String pin, String token, String method, String path, JSONObject body) throws Exception {
@@ -52,8 +80,14 @@ final class Link {
             @Override public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
             @Override public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException { throw new CertificateException("Nieobsługiwane"); }
             @Override public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-                try { if (chain == null || chain.length == 0) throw new CertificateException("Brak certyfikatu"); chain[0].checkValidity(); if (!MessageDigest.isEqual(expected, fingerprint(chain[0]))) throw new CertificateException("Certyfikat nie pasuje do zeskanowanego QR"); }
-                catch (Exception e) { throw new CertificateException("Zeskanuj aktualny QR z komputera.", e); }
+                if (chain == null || chain.length == 0) throw new CertificateException("Komputer nie przesłał certyfikatu.");
+                byte[] actual;
+                try { actual = fingerprint(chain[0]); }
+                catch (Exception e) { throw new CertificateException("Nie można odczytać certyfikatu komputera.", e); }
+                if (!MessageDigest.isEqual(expected, actual)) {
+                    throw new PinMismatchException("QR: " + pin.substring(0,12).toUpperCase(Locale.ROOT) + ", komputer: " + hex(actual).substring(0,12));
+                }
+                chain[0].checkValidity();
             }
         }}, new SecureRandom());
         HttpsURLConnection connection = (HttpsURLConnection)new URL(base + path).openConnection();

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
@@ -29,6 +30,18 @@ public sealed class PhoneServer : IAsyncDisposable
     public PhoneServer(X509Certificate2 certificate, PhoneAccess access, IPAddress? address = null, int port = DefaultPort)
     { this.certificate = certificate; this.access = access; listener = new(address ?? IPAddress.Any, port); }
     public void Start() { listener.Start(8); acceptLoop = Accept(); }
+    /// <summary>Exercise the actual listener and private key before showing pairing QR.</summary>
+    public async Task VerifyTlsAsync()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, Port, timeout.Token);
+        var expected = SHA256.HashData(certificate.RawData);
+        await using var tls = new SslStream(client.GetStream(), false, (_, peer, _, _) =>
+            peer != null && CryptographicOperations.FixedTimeEquals(expected, SHA256.HashData(peer.GetRawCertData())));
+        await tls.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
+        { TargetHost = "localhost", EnabledSslProtocols = SslProtocols.Tls12 }, timeout.Token);
+    }
     private async Task Accept()
     {
         while (!stop.IsCancellationRequested)
@@ -55,7 +68,8 @@ public sealed class PhoneServer : IAsyncDisposable
                 await tls.AuthenticateAsServerAsync(new SslServerAuthenticationOptions { ServerCertificate = certificate, EnabledSslProtocols = protocols }, timeout.Token);
                 await Route(tls, timeout.Token);
             }
-            catch (Exception e) when (e is IOException or SocketException or AuthenticationException or OperationCanceledException) { Log?.Invoke("Telefon: połączenie zakończone (" + e.GetType().Name + ")."); }
+            catch (AuthenticationException e) { Log?.Invoke("Telefon TLS: " + e.Message + (e.InnerException == null ? "" : " / " + e.InnerException.GetType().Name + ": " + e.InnerException.Message)); }
+            catch (Exception e) when (e is IOException or SocketException or OperationCanceledException) { Log?.Invoke("Telefon: połączenie zakończone (" + e.GetType().Name + ")."); }
             catch (Exception e) { Log?.Invoke("Telefon: " + e.Message); }
             finally { slots.Release(); }
         }

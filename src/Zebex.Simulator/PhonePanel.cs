@@ -81,14 +81,14 @@ internal sealed class PhonePanel : UserControl
         if (certificate == null)
         {
             var saved = ReadProtected("certificate.dat");
-            if (saved != null) certificate = new X509Certificate2(Convert.FromBase64String(saved), "", X509KeyStorageFlags.EphemeralKeySet);
+            if (saved != null) certificate = new X509Certificate2(Convert.FromBase64String(saved), "", X509KeyStorageFlags.UserKeySet);
             else
             {
                 using var rsa = RSA.Create(2048); var req = new CertificateRequest("CN=Zebex Phone Local", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
                 req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
                 using var generated = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(5));
                 var pfx = generated.Export(X509ContentType.Pfx, ""); WriteProtected("certificate.dat", Convert.ToBase64String(pfx));
-                certificate = new X509Certificate2(pfx, "", X509KeyStorageFlags.EphemeralKeySet);
+                certificate = new X509Certificate2(pfx, "", X509KeyStorageFlags.UserKeySet);
             }
         }
         var newServer = new PhoneServer(certificate, access);
@@ -96,7 +96,15 @@ internal sealed class PhonePanel : UserControl
         newServer.Status = (client, id) => OnUi(() => collector.PhoneDocumentStatus(client, id));
         newServer.Products = (offset, limit, revision) => OnUi(() => collector.PhoneProducts(offset, limit, revision));
         newServer.Log = text => Log?.Invoke(text);
-        newServer.Start(); server = newServer; start.Text = "Zatrzymaj połączenie telefonu";
+        newServer.Start();
+        try { Task.Run(newServer.VerifyTlsAsync).GetAwaiter().GetResult(); }
+        catch (Exception e)
+        {
+            newServer.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            throw new IOException("Windows nie uruchomił poprawnego połączenia TLS. " + e.Message + (e.InnerException == null ? "" : " / " + e.InnerException.Message), e);
+        }
+        Log?.Invoke("Telefon: test TLS 1.2 i dostępu do klucza certyfikatu OK.");
+        server = newServer; start.Text = "Zatrzymaj połączenie telefonu";
         UpdatePairing(); Log?.Invoke("Telefon: serwer HTTPS aktywny, port " + PhoneServer.DefaultPort);
     }
     private Task<T> OnUi<T>(Func<T> action)

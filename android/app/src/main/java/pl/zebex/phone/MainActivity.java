@@ -71,7 +71,7 @@ public final class MainActivity extends Activity {
     private void guard(Work action) { try { action.run(); } catch (Exception e) { fail(e); } }
     private void fail(Exception e) { if (isDestroyed()) return; String message = friendly(e); if (status != null) status.setText(message); new AlertDialog.Builder(this).setTitle("Nie zakończono operacji").setMessage(message).setPositiveButton("OK", null).show(); }
     private static String friendly(Exception e) {
-        if (e instanceof javax.net.ssl.SSLException) return "Certyfikat komputera nie pasuje. Zeskanuj ponownie aktualny QR na komputerze.";
+        String tls = Link.tlsError(e); if (tls != null) return tls;
         if (e instanceof java.net.SocketTimeoutException || e instanceof java.net.ConnectException || e instanceof java.net.NoRouteToHostException) return "Nie ma połączenia z komputerem. Sprawdź wspólne Wi-Fi, włączony program i zaporę Windows. Odczyty pozostają na telefonie.";
         return e.getMessage() == null ? "Nie udało się wykonać operacji. Dane pozostają na telefonie." : e.getMessage();
     }

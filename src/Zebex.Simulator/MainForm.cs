@@ -34,7 +34,7 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "Zebex Simulator 0.4 — Telefon / SUZ / EKP";
+        Text = "Zebex Simulator 0.4.2 — Telefon / SUZ / EKP";
         MinimumSize = new Size(1000, 700);
         Size = new Size(1280, 860);
         StartPosition = FormStartPosition.CenterScreen;
