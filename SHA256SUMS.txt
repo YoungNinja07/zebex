@@ -1,2 +1,2 @@
 a97ad5abd1c10ec466d05032cfba0a4603b6aa3b58bda0813e740e69ff6eb4f9  Zebex-Phone.apk
-fe653b1aa14611709e64e662a7eeca0491af5deb015eaf642de5355e34f019a1  ZebexSimulator-Windows-x64.zip
+ed9ac43e4aa8ec3209e2ecf804a5736d80d4e90eba0daca1e263e0c9eac9abbf  ZebexSimulator-Windows-x64.zip

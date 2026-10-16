@@ -29,7 +29,7 @@ public sealed class PhoneServer : IAsyncDisposable
     public int Port => ((IPEndPoint)listener.LocalEndpoint).Port;
     public PhoneServer(X509Certificate2 certificate, PhoneAccess access, IPAddress? address = null, int port = DefaultPort)
     { this.certificate = certificate; this.access = access; listener = new(address ?? IPAddress.Any, port); }
-    public void Start() { listener.Start(8); acceptLoop = Accept(); }
+    public void Start() { listener.Start(8); acceptLoop = Task.Run(Accept); }
     /// <summary>Exercise the actual listener and private key before showing pairing QR.</summary>
     public async Task VerifyTlsAsync()
     {

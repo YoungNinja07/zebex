@@ -154,8 +154,11 @@ using(var rsa=RSA.Create(2048))
     var access=new PhoneAccess(null,_=>{});var session=new CollectorSession();
     await using var server=new PhoneServer(cert,access,IPAddress.Loopback,0);
     server.Upload=(owner,doc)=>Task.FromResult(session.ImportPhoneDocument(owner,doc));server.Status=(owner,id)=>Task.FromResult(session.GetPhoneReceipt(id,owner));
-    server.Products=(o,l,r)=>Task.FromResult(new PhoneProductPage(o,1,"revision",false,[new("000123","Towar",1,2)]));server.Start();
-    await server.VerifyTlsAsync();Console.WriteLine("PASS listener TLS self-test authenticates with pinned certificate");passed++;
+    server.Products=(o,l,r)=>Task.FromResult(new PhoneProductPage(o,1,"revision",false,[new("000123","Towar",1,2)]));
+    var originalContext = SynchronizationContext.Current; var uiContext = new RecordingUiContext();
+    try { SynchronizationContext.SetSynchronizationContext(uiContext); server.Start(); }
+    finally { SynchronizationContext.SetSynchronizationContext(originalContext); }
+    await server.VerifyTlsAsync();Equal(0,uiContext.Posts);Console.WriteLine("PASS listener TLS self-test authenticates with pinned certificate");passed++;
     using var handler=new HttpClientHandler {UseProxy=false,ServerCertificateCustomValidationCallback=(_,c,_,_)=>c!=null&&CryptographicOperations.FixedTimeEquals(SHA256.HashData(c.RawData),SHA256.HashData(cert.RawData))};
     using var http=new HttpClient(handler){BaseAddress=new Uri("https://127.0.0.1:"+server.Port),Timeout=TimeSpan.FromSeconds(5)};
     Task<HttpResponseMessage> Post<T>(string path,T value) => http.PostAsync(path,new StringContent(JsonSerializer.Serialize(value,new JsonSerializerOptions(JsonSerializerDefaults.Web)),Encoding.UTF8,"application/json"));
@@ -173,3 +176,13 @@ using(var rsa=RSA.Create(2048))
     access.RevokeAll();Equal(HttpStatusCode.Unauthorized,(await http.GetAsync("/v1/products")).StatusCode);Console.WriteLine("PASS real HTTPS revoked token cannot access catalog");passed++;
 }
 Console.WriteLine($"Completed: {passed} passed, 0 failed.");
+
+sealed class RecordingUiContext : SynchronizationContext
+{
+    public int Posts;
+    public override void Post(SendOrPostCallback callback, object? state)
+    {
+        Interlocked.Increment(ref Posts);
+        ThreadPool.QueueUserWorkItem(_ => callback(state));
+    }
+}

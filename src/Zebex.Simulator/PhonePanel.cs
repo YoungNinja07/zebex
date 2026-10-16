@@ -23,6 +23,7 @@ internal sealed class PhonePanel : UserControl
     private PhoneAccess? access;
     private PhoneServer? server;
     private string lastQr = "";
+    private bool closing;
     public bool Running => server != null;
     public event Action<string>? Log;
     public PhonePanel(CollectorView collector)
@@ -52,9 +53,9 @@ internal sealed class PhonePanel : UserControl
         start.Click += async (_, _) =>
         {
             start.Enabled = false;
-            try { if (server != null) await StopAsync(); else Start(); }
-            catch (Exception e) { status.Text = e.Message; Log?.Invoke("Telefon: " + e.Message); }
-            finally { start.Enabled = true; }
+            try { if (server != null) await StopAsync(); else await StartAsync(); }
+            catch (Exception e) { if (!closing) { status.Text = e.Message; Log?.Invoke("Telefon: " + e.Message); } }
+            finally { if (!closing) start.Enabled = true; }
         };
         timer.Tick += (_, _) => { if (server == null) return; if (DateTime.UtcNow >= access!.Pairing.Expires) access.Rotate(); UpdatePairing(); };
         timer.Start();
@@ -74,22 +75,30 @@ internal sealed class PhonePanel : UserControl
         Directory.CreateDirectory(folder); var path = Path.Combine(folder, name);
         File.WriteAllBytes(path + ".tmp", ProtectedData.Protect(Encoding.UTF8.GetBytes(text), null, DataProtectionScope.CurrentUser)); File.Move(path + ".tmp", path, true);
     }
-    private void Start()
+    private async Task StartAsync()
     {
         if (addresses.SelectedItem == null) throw new IOException("Brak adresu lokalnej sieci. Połącz komputer i telefon z tym samym Wi-Fi, następnie uruchom aplikację ponownie.");
         access ??= new PhoneAccess(ReadProtected("phones.dat"), text => WriteProtected("phones.dat", text));
+        status.Text = "Przygotowywanie certyfikatu i sprawdzanie połączenia TLS…";
         if (certificate == null)
         {
+            var loaded = await Task.Run(() =>
+            {
+            X509Certificate2 result;
             var saved = ReadProtected("certificate.dat");
-            if (saved != null) certificate = new X509Certificate2(Convert.FromBase64String(saved), "", X509KeyStorageFlags.UserKeySet);
+            if (saved != null) result = new X509Certificate2(Convert.FromBase64String(saved), "", X509KeyStorageFlags.UserKeySet);
             else
             {
                 using var rsa = RSA.Create(2048); var req = new CertificateRequest("CN=Zebex Phone Local", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
                 req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
                 using var generated = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(5));
                 var pfx = generated.Export(X509ContentType.Pfx, ""); WriteProtected("certificate.dat", Convert.ToBase64String(pfx));
-                certificate = new X509Certificate2(pfx, "", X509KeyStorageFlags.UserKeySet);
+                result = new X509Certificate2(pfx, "", X509KeyStorageFlags.UserKeySet);
             }
+            return result;
+            });
+            if (closing) { loaded.Dispose(); return; }
+            certificate = loaded;
         }
         var newServer = new PhoneServer(certificate, access);
         newServer.Upload = (client, upload) => OnUi(() => collector.AcceptPhoneDocument(client, upload));
@@ -97,12 +106,13 @@ internal sealed class PhonePanel : UserControl
         newServer.Products = (offset, limit, revision) => OnUi(() => collector.PhoneProducts(offset, limit, revision));
         newServer.Log = text => Log?.Invoke(text);
         newServer.Start();
-        try { Task.Run(newServer.VerifyTlsAsync).GetAwaiter().GetResult(); }
+        try { await newServer.VerifyTlsAsync(); }
         catch (Exception e)
         {
-            newServer.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            await newServer.DisposeAsync();
             throw new IOException("Windows nie uruchomił poprawnego połączenia TLS. " + e.Message + (e.InnerException == null ? "" : " / " + e.InnerException.Message), e);
         }
+        if (closing) { await newServer.DisposeAsync(); return; }
         Log?.Invoke("Telefon: test TLS 1.2 i dostępu do klucza certyfikatu OK.");
         server = newServer; start.Text = "Zatrzymaj połączenie telefonu";
         UpdatePairing(); Log?.Invoke("Telefon: serwer HTTPS aktywny, port " + PhoneServer.DefaultPort);
@@ -130,9 +140,10 @@ internal sealed class PhonePanel : UserControl
     public async Task StopAsync()
     {
         var current = server; server = null; if (current != null) await current.DisposeAsync();
+        if (closing) return;
         start.Text = "Włącz telefony przez Wi-Fi"; qr.Image?.Dispose(); qr.Image = null; pairing.Text = "Połączenie zatrzymane"; lastQr = "";
     }
-    protected override void Dispose(bool disposing) { if (disposing) { timer.Stop(); timer.Dispose(); _ = StopAsync(); } base.Dispose(disposing); }
+    protected override void Dispose(bool disposing) { if (disposing) { closing = true; timer.Stop(); timer.Dispose(); _ = StopAsync(); } base.Dispose(disposing); }
 }
 
 internal sealed class PhoneNetworkSetupForm : Form
